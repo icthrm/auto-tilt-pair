@@ -1,0 +1,15 @@
+
+aux_source_directory(. RANSAC_SRCS)
+
+MESSAGE(STATUS "building ransac")
+
+add_library (ransac STATIC ${RANSAC_SRCS})
+
+find_package(OpenCV REQUIRED)
+
+target_link_libraries(ransac opencv_gpu.a opencv_contrib.a opencv_legacy.a opencv_objdetect.a opencv_calib3d.a opencv_features2d.a 
+ opencv_video.a opencv_highgui.a opencv_ml.a opencv_imgproc.a opencv_flann.a opencv_core.a)   #${OpenCV_LIBS}
+
+set_target_properties(ransac PROPERTIES OUTPUT_NAME "ransac")
+set_target_properties(ransac PROPERTIES CLEAN_DIRECT_OUTPUT 1)
+

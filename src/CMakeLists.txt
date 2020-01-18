@@ -1,0 +1,8 @@
+add_subdirectory(dataf)
+add_subdirectory(main)
+add_subdirectory(util)
+add_subdirectory(mrcimg)
+add_subdirectory(test)
+add_subdirectory(drawmatch)
+add_subdirectory(modelmatch)
+add_subdirectory(ransac)

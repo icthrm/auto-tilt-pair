@@ -1,0 +1,17 @@
+
+#set(KEYMATCH_SRCS match_core.cpp)
+aux_source_directory(. MRC_IMG_SRCS)
+
+MESSAGE(STATUS "building mrcimg")
+
+add_library (mrcimg STATIC ${MRC_IMG_SRCS})
+
+find_package(OpenCV REQUIRED)
+
+MESSAGE(STATUS ${OpenCV_LIBS}.a)
+
+target_link_libraries(mrcimg opencv_gpu.a opencv_contrib.a opencv_legacy.a opencv_objdetect.a opencv_calib3d.a 
+ opencv_features2d.a opencv_video.a opencv_highgui.a opencv_ml.a opencv_imgproc.a opencv_flann.a opencv_core.a)   #${OpenCV_LIBS}
+
+set_target_properties(mrcimg PROPERTIES OUTPUT_NAME "mrcimg")
+set_target_properties(mrcimg PROPERTIES CLEAN_DIRECT_OUTPUT 1)

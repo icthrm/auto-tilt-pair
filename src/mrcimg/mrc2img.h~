@@ -1,0 +1,45 @@
+#ifndef MRC2IMG_H__
+#define MRC2IMG_H__
+
+#include "mrcheader.h"
+#include <iostream>
+#include <string>
+#include <fstream>
+#include <cxcore.hpp>
+#include <cv.hpp>
+
+
+namespace util{
+    
+/** @brief MrcStack; only for MRC of float format. */
+class MrcStack{
+private:
+    MRCheader* header;
+    std::string name;
+    std::ifstream in;
+    
+public:
+    MrcStack():header(NULL){}
+    
+    ~MrcStack(){if(header){delete header;}}
+    
+    bool Open(const char* filename);
+    
+    void Close(){if(header){in.close(); delete header; header = NULL;}}
+    
+    IplImage* GetIplImage(int index);
+    
+    int Size() const{return header->nz;}
+    
+    int Width() const{return header->nx;}
+    
+    int Height() const{return header->ny;}
+    
+    const char* Name() const{return name.c_str();}
+    
+    void PrintHeader(std::ostream o) const;
+};
+
+}
+
+#endif

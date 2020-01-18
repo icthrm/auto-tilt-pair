@@ -1,0 +1,94 @@
+#include <iostream>
+#include <climits>
+#include <vector>
+#include "sift/sift_core.h"
+#include "dataf/dataf.h"
+#include "dataf/calibration.h"
+#include "mrcimg/mrc2img.h"
+#include "keymatch/match_core.h"
+#include "bundle/bundle_core.h"
+#include "opts.h"
+#include "env/env.h"
+#include "ransac/xform.h"
+
+using namespace std;
+
+#define __printmat(M)	std::cout<<cvmGet((M), 0, 0)<<" "<<cvmGet((M), 0, 1)<<" "<<cvmGet((M), 0, 2)<<"\n"	\
+		<<cvmGet((M), 1, 0)<<" "<<cvmGet((M), 1, 1)<<" "<<cvmGet((M), 1, 2)<<"\n"		\
+		<<cvmGet((M), 2, 0)<<" "<<cvmGet((M), 2, 1)<<" "<<cvmGet((M), 2, 2)<<std::endl;
+        
+static int z = 10;        
+        
+void InitTV3(double* T, double angle)
+{
+    double C[] = {-sin(angle/180*M_PI)*z, 0, z-cos(angle/180*M_PI)*z};
+    double R[] = {cos(angle/180*M_PI), 0, -sin(angle/180*M_PI),
+                  0, 1, 0,
+                  sin(angle/180*M_PI), 0, cos(angle/180*M_PI)
+                 };
+    double r[3];
+    matrix_product331(R, C, r);
+    T[0] = -r[0];
+    T[1] = -r[1];
+    T[2] = -r[2];
+}
+
+void InitTV32(double* T, double angle)
+{
+
+    mx::Matrix<3,1, double> C = _DMX(-sin(angle/180*M_PI)*z, 0, z-cos(angle/180*M_PI)*z);
+    mx::Matrix<3,3, double> R = _DMX(cos(angle/180*M_PI), 0, -sin(angle/180*M_PI),
+                                     0, 1, 0,
+                                     sin(angle/180*M_PI), 0, cos(angle/180*M_PI));
+    mx::Matrix<3,1, double> r;
+    mx::Product331(R, C, &r);
+
+    T[0] = -r.D(0);
+    T[1] = -r.D(1);
+    T[2] = -r.D(2);
+}
+
+#define __printT(X) std::cout<<T[0]<<" "<<T[1]<<" "<<T[2]<<std::endl;
+
+int main(int argc, char **argv) {
+    double T[3], T2[3];
+    InitTV3(T, 3);
+    __printT(T);
+    InitTV32(T2, 3);
+    __printT(T2);
+    
+    InitTV3(T, 13);
+    __printT(T);
+    InitTV32(T2, 13);
+    __printT(T2);
+    
+    InitTV3(T, -5);
+    __printT(T);
+    InitTV32(T2, -5);
+    __printT(T2);
+    
+    InitTV3(T, -60);
+    __printT(T);
+    InitTV32(T2, -60);
+    __printT(T2);
+}
+
+
+bool ReadAnglesByName(const char* name, std::vector<float>* angles)
+{
+    std::ifstream in(name);
+    if(!in.good()) {
+        return false;
+    }
+
+    while(in.good()) {
+        float angle;
+        in>>angle;
+        if(in.fail()) {
+            break;
+        }
+        angles->push_back(angle);
+    }
+    in.close();
+    return true;
+}

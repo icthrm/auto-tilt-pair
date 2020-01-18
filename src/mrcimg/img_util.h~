@@ -1,0 +1,210 @@
+#ifndef IMG_UTIL_H__
+#define IMG_UTIL_H__
+
+#include "dataf/keypoint.h"
+#include "util/exception.h"
+#include <vector>
+#include "highgui.h"
+#include "cxcore.h"
+#include "cv.h"
+
+namespace util{
+
+static void DrawFeature(IplImage* img, const util::feature& feat);
+    
+inline void DrawX(IplImage* img, int x, int y)
+{
+    CvScalar color = CV_RGB(255, 255, 255);
+    int r = 3;
+    cvLine( img, cvPoint( x - r, y - r), cvPoint( x + r, y + r), color, 3, 8, 0 );
+    cvLine( img, cvPoint( x + r, y - r), cvPoint( x - r, y + r), color, 3, 8, 0 );
+}
+
+inline void DrawFeatures(IplImage* img, const std::vector<util::feature>& feats)
+{
+    CvScalar color = CV_RGB(255, 255, 255);
+
+    for(int i = 0; i < feats.size(); i++){
+        DrawFeature( img, feats[i]);
+    }
+}
+
+static void DrawFeature(IplImage* img, const util::feature& feat)
+{
+    CvScalar color = CV_RGB(255, 255, 255);
+    
+    int len, hlen, blen, start_x, start_y, end_x, end_y, h1_x, h1_y, h2_x, h2_y;
+    double scl, ori;
+    double scale = 5.0;
+    double hscale = 0.75;
+    CvPoint start, end, h1, h2;
+
+    /* compute points for an arrow scaled and rotated by feat's scl and ori */
+    start_x = cvRound( feat.kpt.x );
+    start_y = cvRound( feat.kpt.y );
+    scl = feat.kpt.sigma;
+    ori = feat.kpt.orient;
+    len = cvRound( scl * scale );
+    hlen = cvRound( scl * hscale );
+    blen = len - hlen;
+    end_x = cvRound( len *  cos( ori ) ) + start_x;
+    end_y = cvRound( len * -sin( ori ) ) + start_y;
+    h1_x = cvRound( blen *  cos( ori + CV_PI / 18.0 ) ) + start_x;
+    h1_y = cvRound( blen * -sin( ori + CV_PI / 18.0 ) ) + start_y;
+    h2_x = cvRound( blen *  cos( ori - CV_PI / 18.0 ) ) + start_x;
+    h2_y = cvRound( blen * -sin( ori - CV_PI / 18.0 ) ) + start_y;
+    start = cvPoint( start_x, start_y );
+    end = cvPoint( end_x, end_y );
+    h1 = cvPoint( h1_x, h1_y );
+    h2 = cvPoint( h2_x, h2_y );
+
+    cvLine( img, start, end, color, 1, 8, 0 );
+    cvLine( img, end, h1, color, 1, 8, 0 );
+    cvLine( img, end, h2, color, 1, 8, 0 );
+}
+
+inline void SaveImage(const IplImage* img, const char* filename){
+    EX_TRACE("Save Image %s\n", filename)
+    IplImage* copy = cvCreateImage(cvGetSize(img), IPL_DEPTH_8U, 1);
+    float* src = (float*)img->imageData;
+    char* start = (char*)copy->imageData;
+    char* end = start + img->width*img->height;
+    
+    while(start != end){
+	*start++ = (*src++)*255;
+    }
+    
+    cvSaveImage(filename, copy);
+    cvReleaseImage(&copy);
+}
+
+// 	cvErode( img, img, NULL, 5);
+//      cvDilate(img, img, NULL, 5);
+
+inline void MedianSmooth(IplImage *img)
+{
+    cvSmooth(img, img, CV_MEDIAN, 5);
+}
+
+inline void HistogramStretch(IplImage *img)  
+{
+#define HISTOGRAM_BIN		256
+    cv::Mat mat(img, 0);
+    double minimum, maximum;
+    cvMinMaxLoc(img, &minimum, &maximum);
+    minimum = minimum<0?minimum:0;
+    maximum = maximum>1?maximum:1;
+    float range[] = {minimum, maximum};
+    const float* ranges = {range};
+    cv::Mat hist;
+    const int channel = 0;
+    const int binsize = HISTOGRAM_BIN;
+    cv::calcHist(&mat, 1, &channel, cv::Mat(), hist, 1, &binsize, &ranges);	/*warning: if has some problem, look here */
+    cv::normalize(hist, hist, 1, 0, CV_L1);
+    float* vlu = (float*)hist.data;
+    
+    for(int i = 1; i < HISTOGRAM_BIN; i++){
+	vlu[i] += vlu[i-1];
+    }
+    
+    float delta = (maximum-minimum)/(HISTOGRAM_BIN);
+    
+    float res = delta/2/(maximum-minimum);
+    for(int x = 0; x < img->height; x++){
+	for(int y = 0; y < img->width; y++){
+	    int loc = (int)((CV_IMAGE_ELEM(img, float, x, y)-minimum)/delta);
+	    CV_IMAGE_ELEM(img, float, x, y) = (maximum-minimum)*(vlu[loc]+delta)+minimum;
+	}
+    }
+}  
+
+inline void ConvertTo1(IplImage* img)
+{
+    double minimum, maximum;
+    CvScalar mean, sdv;
+    cvAvgSdv(img, &mean, &sdv);
+    cvMinMaxLoc(img, &minimum, &maximum);
+    
+#define CUTOFF (3)
+    
+    float* ptr = (float*)img->imageData;
+    float* end = (float*)img->imageData+img->width*img->height;
+    
+    maximum = (maximum > mean.val[0]+CUTOFF*sdv.val[0])? mean.val[0]+CUTOFF*sdv.val[0] : maximum;
+    minimum = (minimum > mean.val[0]-CUTOFF*sdv.val[0])? minimum : mean.val[0]-CUTOFF*sdv.val[0];    
+    
+    while(ptr != end){
+	if(fabs(*ptr-mean.val[0]) <= CUTOFF*sdv.val[0]){
+	    *ptr = (*ptr-minimum)/((maximum-minimum)==0?1:(maximum-minimum));
+	}
+	else{
+	    if(*ptr > mean.val[0]){
+		*ptr = 1;
+	    }
+	    else{
+		*ptr = 0;
+	    } 
+	}
+	ptr++;
+    }
+#undef CUTOFF
+}
+
+inline void CopyToUChar256(const IplImage* img, IplImage** cpy, int w, int b)
+{
+    *cpy = cvCreateImage(cvSize(img->width, img->height), IPL_DEPTH_8U, 1);
+    double minimum, maximum;
+    CvScalar mean, sdv;
+    cvAvgSdv(img, &mean, &sdv);
+    cvMinMaxLoc(img, &minimum, &maximum);
+    
+#define CUTOFF (3)//(4)//(5)
+    
+    float* ptr = (float*)img->imageData;
+    float* end = (float*)img->imageData+img->width*img->height;
+
+    uchar* dst = (uchar*)(*cpy)->imageData;
+    
+    maximum = (maximum > mean.val[0]+CUTOFF*sdv.val[0])? mean.val[0]+CUTOFF*sdv.val[0] : maximum;
+    minimum = (minimum > mean.val[0]-CUTOFF*sdv.val[0])? minimum : mean.val[0]-CUTOFF*sdv.val[0];
+    
+    while(ptr != end){
+	if(fabs(*ptr-mean.val[0]) <= CUTOFF*sdv.val[0]){
+	    *dst = (uchar)((*ptr-minimum)*(w-b)/((maximum-minimum)==0?1:(maximum-minimum))+b);
+	    *dst = *dst > w ? w : *dst;
+	}
+	else{
+	    if(*ptr > mean.val[0]){
+		*dst = w;
+	    }
+	    else{
+		*dst = b;
+	    }
+	}
+	ptr++;
+	dst++;
+    }
+    
+#undef CUTOFF
+}
+
+inline void LaplaceSharpen(IplImage* img)
+{
+    CvMat* kernel;
+    kernel = cvCreateMat(3,3,CV_32F);
+    cvmSet(kernel, 0, 0, 0);
+    cvmSet(kernel, 0, 1, -1);
+    cvmSet(kernel, 0, 2, 0);
+    cvmSet(kernel, 1, 0, -1);
+    cvmSet(kernel, 1, 1, 5);
+    cvmSet(kernel, 1, 2, -1);
+    cvmSet(kernel, 2, 0, 0);
+    cvmSet(kernel, 2, 1, -1);
+    cvmSet(kernel, 2, 2, 0);
+
+    cvFilter2D(img, img, kernel);
+}
+
+}
+
+#endif
