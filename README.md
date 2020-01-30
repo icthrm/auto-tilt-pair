@@ -13,5 +13,16 @@ make -j 2
 The preprocessed files about Nitrosop2 and Nitrosop3 are available at https://drive.google.com/drive/folders/1X-9m_dDaT1U3sjNx8SdL15xy2wMOwhRF?usp=sharing
 To test the code, please run the exe as the "cmd" files in the subdirectory (the markerauto commend is also given within the "cmd" files, the users may restart all the thing from markerauto).
 
+The presented data are downloaded from the https://etdb.caltech.edu/browse. Here we listed all the links of the other three test data in our paper:
+https://etdb.caltech.edu/tomogram/cc0397
+https://etdb.caltech.edu/tomogram/3c3f9c
+https://etdb.caltech.edu/tomogram/91e5cd
+
+Please download the mrc or st file. The files downloaded from the ETDB are 8-bit format, which is not acceptable to AUTOM or EMAN. The users are recommended to use the newstack from IMOD to change the format:
+
+newstack -input xxx.st -output xxx.mrc -mode 2
+
+The IMOD's extracttilts could be used to extract the tilt angle file of the mrc stack.
+
 We are trying to fully integrate the auto-tilt-pair technique into markerauto 1.65, interested users could write to hanrenmin@gmail.com for free try.
 
